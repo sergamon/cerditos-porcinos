@@ -6,6 +6,43 @@ from datetime import datetime, timedelta
 from db import get_conn, ensure
 
 st.set_page_config(page_title="Cerditos - Gestión Porcina", layout="wide")
+import os
+import streamlit as st
+
+def check_password():
+    expected = st.secrets.get("APP_PASSWORD") or os.environ.get("APP_PASSWORD")
+    # Si no hay secreto configurado, no bloqueamos (útil en local)
+    if not expected:
+        st.warning("APP_PASSWORD no está configurada en Secrets. Acceso libre (modo demo).")
+        return True
+
+    if "auth_ok" not in st.session_state:
+        st.session_state["auth_ok"] = False
+
+    if st.session_state["auth_ok"]:
+        return True
+
+    with st.sidebar:
+        st.subheader("Acceso")
+        pwd = st.text_input("Contraseña", type="password", placeholder="Ingresa la clave")
+        if st.button("Entrar", use_container_width=True):
+            if pwd == expected:
+                st.session_state["auth_ok"] = True
+                st.rerun()
+            else:
+                st.error("Contraseña incorrecta.")
+    return False
+
+# Bloquea la app si no pasa la autenticación
+if not check_password():
+    st.stop()
+
+# (Opcional) botón de salir
+with st.sidebar:
+    if st.button("Salir"):
+        st.session_state["auth_ok"] = False
+        st.rerun()
+
 ensure()
 conn = get_conn()
 
