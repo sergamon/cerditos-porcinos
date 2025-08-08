@@ -111,6 +111,40 @@ elif page == "Animales":
 
     df = fetch_df("SELECT id,arete,categoria,sexo,raza,fecha_nacimiento,estado FROM animals ORDER BY id DESC")
     st.dataframe(df, use_container_width=True)
+st.subheader("Eliminar animal")
+if df is not None and not df.empty:
+    # Selector por ID mostrando arete y categoría
+    def _fmt(aid):
+        row = df.set_index("id").loc[aid]
+        return f"{aid} — {row['arete']} ({row['categoria']})"
+
+    id_to_delete = st.selectbox(
+        "Selecciona el animal a eliminar",
+        options=df["id"].tolist(),
+        format_func=_fmt
+    )
+
+    # Verifica referencias en reproducciones (marrana o macho)
+    refs = fetch_df(
+        """
+        SELECT COALESCE(SUM(cnt),0) AS r FROM (
+            SELECT COUNT(*) AS cnt FROM reproducciones WHERE marrana_id=?
+            UNION ALL
+            SELECT COUNT(*) AS cnt FROM reproducciones WHERE macho_id=?
+        )
+        """,
+        (id_to_delete, id_to_delete)
+    ).iloc[0]["r"]
+
+    if int(refs) > 0:
+        st.warning(f"No se puede eliminar: hay {int(refs)} registro(s) de reproducción asociados. Elimina esos registros primero.")
+    else:
+        if st.button("Eliminar definitivamente", type="primary"):
+            conn.execute("DELETE FROM animals WHERE id=?", (int(id_to_delete),))
+            conn.commit()
+            st.success("Animal eliminado. Actualiza la página (Rerun) para ver los cambios.")
+else:
+    st.info("No hay animales para eliminar.")
 
 elif page == "Reproducción":
     st.title("Gestión Reproductiva")
